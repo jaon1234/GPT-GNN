@@ -128,7 +128,16 @@ class HybridMaskedAutoencoder(nn.Module):
         self.decoder_norm = nn.LayerNorm(decoder_dim)
         self.decoder_pred = nn.Linear(decoder_dim, self.patch_dim)
 
-        self.apply(_init_weights)
+        # Initialize only the newly added layers; leave torchvision ResNet18
+        # initialization or requested pretrained weights intact.
+        self.patch_embed.apply(_init_weights)
+        self.resnet_proj.apply(_init_weights)
+        self.encoder_blocks.apply(_init_weights)
+        self.encoder_norm.apply(_init_weights)
+        self.decoder_embed.apply(_init_weights)
+        self.decoder_blocks.apply(_init_weights)
+        self.decoder_norm.apply(_init_weights)
+        self.decoder_pred.apply(_init_weights)
         nn.init.normal_(self.pos_embed, std=0.02)
         nn.init.normal_(self.decoder_pos_embed, std=0.02)
         nn.init.normal_(self.mask_token, std=0.02)
@@ -164,8 +173,10 @@ class HybridMaskedAutoencoder(nn.Module):
         return images
 
     def random_masking(self, x, mask_ratio):
+        if mask_ratio < 0.0 or mask_ratio >= 1.0:
+            raise ValueError("mask_ratio must be in [0, 1).")
         bsz, num_tokens, dim = x.shape
-        len_keep = int(num_tokens * (1.0 - mask_ratio))
+        len_keep = max(1, int(num_tokens * (1.0 - mask_ratio)))
         noise = torch.rand(bsz, num_tokens, device=x.device)
         ids_shuffle = torch.argsort(noise, dim=1)
         ids_restore = torch.argsort(ids_shuffle, dim=1)

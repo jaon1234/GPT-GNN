@@ -23,14 +23,25 @@ def resolve_device(device):
 
 def adjust_learning_rate(optimizer, progress, epochs, base_lr, min_lr, warmup_epochs):
     if warmup_epochs > 0 and progress < warmup_epochs:
-        lr = base_lr * progress / float(max(1e-8, warmup_epochs))
+        factor = progress / float(max(1e-8, warmup_epochs))
+        cosine_progress = 0.0
     else:
+        factor = None
         cosine_progress = (progress - warmup_epochs) / float(max(1e-8, epochs - warmup_epochs))
         cosine_progress = min(1.0, max(0.0, cosine_progress))
-        lr = min_lr + (base_lr - min_lr) * 0.5 * (1.0 + math.cos(math.pi * cosine_progress))
+    last_lr = base_lr
     for param_group in optimizer.param_groups:
+        group_base_lr = param_group.get("base_lr", base_lr)
+        group_min_lr = param_group.get("min_lr", min_lr)
+        if factor is not None:
+            lr = group_base_lr * factor
+        else:
+            lr = group_min_lr + (group_base_lr - group_min_lr) * 0.5 * (
+                1.0 + math.cos(math.pi * cosine_progress)
+            )
         param_group["lr"] = lr
-    return lr
+        last_lr = lr
+    return last_lr
 
 
 def save_json(path, payload):

@@ -111,9 +111,14 @@ def build_optimizer(args, model):
             backbone_params.append(parameter)
     param_groups = []
     if backbone_params:
-        param_groups.append({"params": backbone_params, "lr": args.lr})
+        param_groups.append({"params": backbone_params, "lr": args.lr, "base_lr": args.lr, "min_lr": args.min_lr})
     if head_params:
-        param_groups.append({"params": head_params, "lr": args.head_lr})
+        head_min_lr = args.min_lr
+        if args.lr > 0:
+            head_min_lr = args.min_lr * args.head_lr / args.lr
+        param_groups.append(
+            {"params": head_params, "lr": args.head_lr, "base_lr": args.head_lr, "min_lr": head_min_lr}
+        )
     return torch.optim.AdamW(param_groups, weight_decay=args.weight_decay)
 
 
@@ -135,9 +140,6 @@ def run_epoch(model, data_loader, criterion, optimizer, args, device, epoch, tra
                 min_lr=args.min_lr,
                 warmup_epochs=args.warmup_epochs,
             )
-            if len(optimizer.param_groups) > 1:
-                optimizer.param_groups[-1]["lr"] = args.head_lr
-
         with torch.set_grad_enabled(train):
             logits = model(images)
             loss = criterion(logits, targets)
