@@ -2,10 +2,11 @@
 """Copy files whose names contain sample IDs listed in an Excel file."""
 
 import argparse
+import os
 import shutil
 from pathlib import Path
 
-import pandas as pd
+from openpyxl import load_workbook
 from tqdm import tqdm
 
 
@@ -18,21 +19,35 @@ def read_sample_ids(excel_path, column_name=SAMPLE_COLUMN):
     if not excel_file.is_file():
         raise FileNotFoundError("Excel 文件不存在: {}".format(excel_file))
 
-    data = pd.read_excel(str(excel_file), dtype=str)
-    if column_name not in data.columns:
-        raise ValueError(
-            "Excel 中未找到列 '{}'; 当前列为: {}".format(
-                column_name, ", ".join(map(str, data.columns))
-            )
-        )
+    workbook = load_workbook(str(excel_file), read_only=True, data_only=True)
+    try:
+        worksheet = workbook.active
+        rows = worksheet.iter_rows(values_only=True)
+        try:
+            header = next(rows)
+        except StopIteration:
+            raise ValueError("Excel 文件为空: {}".format(excel_file))
 
-    sample_ids = []
-    seen = set()
-    for value in data[column_name].dropna():
-        sample_id = str(value).strip()
-        if sample_id and sample_id not in seen:
-            sample_ids.append(sample_id)
-            seen.add(sample_id)
+        try:
+            column_index = list(header).index(column_name)
+        except ValueError:
+            columns = ", ".join(str(name) for name in header if name is not None)
+            raise ValueError(
+                "Excel 中未找到列 '{}'; 当前列为: {}".format(column_name, columns)
+            )
+
+        sample_ids = []
+        seen = set()
+        for row in rows:
+            value = row[column_index] if column_index < len(row) else None
+            if value is None:
+                continue
+            sample_id = str(value).strip()
+            if sample_id and sample_id not in seen:
+                sample_ids.append(sample_id)
+                seen.add(sample_id)
+    finally:
+        workbook.close()
 
     if not sample_ids:
         raise ValueError("Excel 列 '{}' 中没有有效样本编号".format(column_name))
@@ -69,7 +84,7 @@ def copy_matched_files(excel_path, search_path, copy_path, column_name=SAMPLE_CO
 
     copied_files = []
     for current_dir, _, filenames in tqdm(
-        os_walk(search_dir), desc="查找文件", unit="目录"
+        os.walk(str(search_dir)), desc="查找文件", unit="目录"
     ):
         current_path = Path(current_dir)
         for filename in filenames:
@@ -80,13 +95,6 @@ def copy_matched_files(excel_path, search_path, copy_path, column_name=SAMPLE_CO
                 copied_files.append((source, destination))
 
     return copied_files
-
-
-def os_walk(path):
-    """Small wrapper to keep path handling in one place."""
-    import os
-
-    return os.walk(str(path))
 
 
 def parse_args():
