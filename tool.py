@@ -140,7 +140,7 @@ def filter_csv_files_by_sample_column(
     search_column_index,
     save_path,
     column_name=SAMPLE_COLUMN,
-    encoding="utf-8-sig",
+    encoding="gbk",
 ):
     """Filter matched CSV files by sample IDs and save retained rows."""
     if search_column_index < 0:
@@ -358,8 +358,8 @@ def parse_args():
     add_excel_column_argument(csv_parser)
     csv_parser.add_argument(
         "--encoding",
-        default="utf-8-sig",
-        help="CSV 文件编码，默认: utf-8-sig",
+        default="gbk",
+        help="CSV 文件编码，默认: gbk",
     )
 
     excel_parser = subparsers.add_parser(
