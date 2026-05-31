@@ -1,0 +1,9 @@
+.venv/
+.venv-*/
+__pycache__/
+*.py[cod]
+
+# Local model/data artifacts produced by examples.
+examples/blood_cell_annotation/data/
+examples/blood_cell_annotation/models/
+examples/blood_cell_annotation/runs/
