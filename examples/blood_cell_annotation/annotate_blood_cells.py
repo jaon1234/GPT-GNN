@@ -55,6 +55,9 @@ WIKIMEDIA_FILES = [
 ]
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+HTTP_HEADERS = {
+    "User-Agent": "blood-cell-annotation-example/1.0 (research demo; https://github.com/jaon1234/GPT-GNN)"
+}
 CLASS_COLORS = {
     "Platelets": (255, 196, 0),
     "platelets": (255, 196, 0),
@@ -159,7 +162,7 @@ def download_file(url: str, destination: Path, force: bool = False) -> Path:
         return destination
 
     tmp = destination.with_suffix(destination.suffix + ".tmp")
-    with requests.get(url, stream=True, timeout=60) as response:
+    with requests.get(url, stream=True, timeout=60, headers=HTTP_HEADERS) as response:
         response.raise_for_status()
         total = int(response.headers.get("content-length", 0))
         with tmp.open("wb") as handle, tqdm(
@@ -183,7 +186,7 @@ def fetch_wikimedia_source(item: dict[str, str], image_dir: Path, force: bool) -
         f"?action=query&titles={quote(title)}&prop=imageinfo"
         "&iiprop=url|extmetadata&format=json"
     )
-    response = requests.get(api_url, timeout=30)
+    response = requests.get(api_url, timeout=30, headers=HTTP_HEADERS)
     response.raise_for_status()
     pages = response.json()["query"]["pages"]
     page = next(iter(pages.values()))
